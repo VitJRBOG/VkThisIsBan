@@ -26,7 +26,7 @@ func readJSON(path string) ([]byte, error) {
 
 // writeJSON записывает данные в json файл
 func writeJSON(path string, dataIn []byte) error {
-	err := ioutil.WriteFile(path, dataIn, 0)
+	err := ioutil.WriteFile(path, dataIn, 0644)
 	if err != nil {
 		return err
 	}

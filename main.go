@@ -3,6 +3,8 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
+	"log"
 	"os"
 	"strconv"
 	"strings"
@@ -38,6 +40,11 @@ type BanDurations struct {
 }
 
 func main() {
+	err := initialization()
+	if err != nil {
+		log.Fatalln(err)
+	}
+
 	var banInfo BanInfo
 
 	// получаем url к страничке пользователя
@@ -89,6 +96,49 @@ func main() {
 	}
 
 	fmt.Println(fmt.Sprintf("> %v is banned. Check this!", userFullName))
+}
+
+// initialization проверяет наличие ресурсных файлов и создает их, если отсутствуют
+func initialization() error {
+
+	// проверяем наличие файла с путем к файлу с данными
+	if _, err := os.Stat("path.txt"); os.IsNotExist(err) {
+
+		// если отсутствует, то создаем новый
+		valuesBytes := []byte("")
+		err = ioutil.WriteFile("path.txt", valuesBytes, 0644)
+		if err != nil {
+			return err
+		}
+		fmt.Println("COMPUTER [Initialization]: File \"path.txt\" has been created.")
+	}
+
+	// получаем путь к файлу с данными
+	path, err := readPath()
+	if err != nil {
+		return err
+	}
+
+	// проверяем наличие файла с данными
+	if _, err := os.Stat(path + "data.json"); os.IsNotExist(err) {
+
+		// если отсутствует, то создаем новый
+		var data Data
+
+		// формируем массив байт с данными
+		valuesBytes, err := json.Marshal(data)
+		if err != nil {
+			return err
+		}
+
+		// записываем файл
+		err = writeJSON(path+"data.json", valuesBytes)
+		if err != nil {
+			return err
+		}
+		fmt.Println("COMPUTER [Initialization]: File \"data.json\" has been created.")
+	}
+	return nil
 }
 
 // getData получает данные для параметров из файла json
