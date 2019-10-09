@@ -340,6 +340,10 @@ func selectUnbanDate() (string, error) {
 		return "", err
 	}
 
+	var unbanDate string
+
+	if intUserAnswer < 5 {
+
 	// с помощью номера, который ввел пользователь, получаем из списка значение срока
 	duration := data.BanDurations[intUserAnswer-1].Duration
 
@@ -352,7 +356,18 @@ func selectUnbanDate() (string, error) {
 	nowDate := int(time.Now().Unix())
 
 	// прибавляем к текущей дате срок блокировки
-	unbanDate := strconv.Itoa(nowDate + duration)
+		unbanDate = strconv.Itoa(nowDate + duration)
+	} else {
+
+		// определяем текущую дату и время
+		nowDate := time.Now()
+
+		// собираем дату последнего дня года
+		lastYearsDay := time.Date(nowDate.Year(), 12, 31, 23, 59, 59, 0, nowDate.Location())
+
+		// преобразуем полученную дату в unixtime
+		unbanDate = strconv.Itoa(int(lastYearsDay.Unix()))
+	}
 
 	return unbanDate, nil
 }
