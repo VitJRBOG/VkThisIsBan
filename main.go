@@ -463,8 +463,8 @@ func banUser(banInfo BanInfo) error {
 	_, err = sendRequestVKAPI("groups.ban", params, data.AccessToken)
 	if err != nil {
 		// если сервер вернул ошибку "слишком много запросов в секунду", то повторяем запрос
-		if strings.Contains(err.Error(), "Too many requests per second") {
-			banUser(banInfo)
+		if strings.Contains(err.Error(), "many requests per second") {
+			return banUser(banInfo)
 		}
 		return err
 	}
