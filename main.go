@@ -21,10 +21,9 @@ type BanInfo struct {
 
 // Data хранит данные для параметров
 type Data struct {
-	AccessToken  string         `json:"access_token"`
-	Groups       []Groups       `json:"groups"`
-	BanReasons   []string       `json:"ban_reasons"`
-	BanDurations []BanDurations `json:"ban_durations"`
+	AccessToken string       `json:"access_token"`
+	Groups      []Groups     `json:"groups"`
+	BanReasons  []BanReasons `json:"ban_reasons"`
 }
 
 // Groups хранит информацию о пабликах
@@ -33,10 +32,11 @@ type Groups struct {
 	ID   string `json:"id"`
 }
 
-// BanDurations хранит информацию о сроках блокировки
-type BanDurations struct {
-	Title    string `json:"title"`
-	Duration int    `json:"duration"`
+// BanReasons хранит информацию о сроках и причинах блокировки
+type BanReasons struct {
+	Reason        string `json:"reason"`
+	DurationTitle string `json:"duration_title"`
+	Duration      int    `json:"duration"`
 }
 
 func main() {
@@ -73,7 +73,8 @@ func main() {
 	fmt.Println("> Gotcha ID of group.")
 
 	// выбираем причину, которая будет записана в комментарии к блокировке
-	banInfo.ReasonTitle, err = selectReason()
+	var reasonIndex int
+	reasonIndex, banInfo.ReasonTitle, err = selectReason()
 	if err != nil {
 		fmt.Println(fmt.Errorf("%v", err))
 		os.Exit(0)
@@ -81,7 +82,7 @@ func main() {
 	fmt.Println("> Gotcha reason title of ban.")
 
 	// выбираем дату автоматической разблокировки
-	banInfo.UnbanDate, err = selectUnbanDate()
+	banInfo.UnbanDate, err = getUnbanDate(reasonIndex)
 	if err != nil {
 		fmt.Println(fmt.Errorf("%v", err))
 		os.Exit(0)
@@ -263,11 +264,11 @@ func getUserID(userURL string) (string, string, error) {
 		case strings.Contains(err.Error(), "no access_token passed"):
 			if err := getAccessToken(); err != nil {
 				return "", "", err
-		}
+			}
 			return getUserID(userURL)
 		default:
-		return "", "", err
-	}
+			return "", "", err
+		}
 
 	}
 
@@ -337,17 +338,17 @@ func selectGroup() (string, error) {
 }
 
 // selectReason дает указать причину блокировки
-func selectReason() (string, error) {
+func selectReason() (int, string, error) {
 
 	// получаем данные
 	data, err := getData()
 	if err != nil {
-		return "", err
+		return 0, "", err
 	}
 
 	// оглашаем весь список
 	for i, reason := range data.BanReasons {
-		fmt.Printf("> [Reasons]: %d == %v\n", i+1, reason)
+		fmt.Printf("> [Reasons]: %d == %v (%v)\n", i+1, reason.Reason, reason.DurationTitle)
 	}
 	fmt.Println("> [Reasons]: 00 == Quit")
 
@@ -355,7 +356,7 @@ func selectReason() (string, error) {
 	var userAnswer string
 	_, err = fmt.Scan(&userAnswer)
 	if err != nil {
-		return "", err
+		return 0, "", err
 	}
 
 	// если пользователь ввел 00, то завершаем программу
@@ -367,17 +368,16 @@ func selectReason() (string, error) {
 	// конвертируем строку с номером причины в целочисленный тип
 	intUserAnswer, err := strconv.Atoi(userAnswer)
 	if err != nil {
-		return "", err
+		return 0, "", err
 	}
 
-	// с помощью номера, который ввел пользователь, получаем из списка текст причины
-	reasonTitle := data.BanReasons[intUserAnswer-1]
+	reasonIndex := intUserAnswer - 1
 
-	return reasonTitle, nil
+	return reasonIndex, data.BanReasons[reasonIndex].Reason, nil
 }
 
-// selectUnbanDate дает указать дату разблокировки
-func selectUnbanDate() (string, error) {
+// getUnbanDate получаем дату разблокировки
+func getUnbanDate(reasonIndex int) (string, error) {
 
 	// получаем данные
 	data, err := getData()
@@ -385,49 +385,10 @@ func selectUnbanDate() (string, error) {
 		return "", err
 	}
 
-	// оглашаем весь список
-	for i, durationData := range data.BanDurations {
-		fmt.Printf("> [Duration]: %d == %v\n", i+1, durationData.Title)
-	}
-	fmt.Println("> [Duration]: 00 == Quit")
-
-	// запрашиваем номер срока
-	var userAnswer string
-	_, err = fmt.Scan(&userAnswer)
-	if err != nil {
-		return "", err
-	}
-
-	// если пользователь ввел 00, то завершаем программу
-	if userAnswer == "00" {
-		fmt.Println("> Quit...")
-		os.Exit(0)
-	}
-
-	// конвертируем строку с номером срока в целочисленный тип
-	intUserAnswer, err := strconv.Atoi(userAnswer)
-	if err != nil {
-		return "", err
-	}
-
 	var unbanDate string
 
-	if intUserAnswer < 5 {
-
-	// с помощью номера, который ввел пользователь, получаем из списка значение срока
-	duration := data.BanDurations[intUserAnswer-1].Duration
-
-	// если срок блокировки равен 0, значит это вечный бан, поле параметра должно быть пустым
-	if duration == 0 {
-		return "", nil
-	}
-
-	// определяем текущую дату и время
-	nowDate := int(time.Now().Unix())
-
-	// прибавляем к текущей дате срок блокировки
-		unbanDate = strconv.Itoa(nowDate + duration)
-	} else {
+	// если блокировка "до конца года", то определяем дату последнего дня текущего года
+	if data.BanReasons[reasonIndex].DurationTitle == "End of the year" {
 
 		// определяем текущую дату и время
 		nowDate := time.Now()
@@ -437,6 +398,21 @@ func selectUnbanDate() (string, error) {
 
 		// преобразуем полученную дату в unixtime
 		unbanDate = strconv.Itoa(int(lastYearsDay.Unix()))
+	} else {
+
+		// получаем из списка значение срока для данной причины блокировки
+		duration := data.BanReasons[reasonIndex].Duration
+
+		// если срок блокировки равен 0, значит это вечный бан, поле параметра должно быть пустым
+		if duration == 0 {
+			return "", nil
+		}
+
+		// определяем текущую дату и время
+		nowDate := int(time.Now().Unix())
+
+		// прибавляем к текущей дате срок блокировки
+		unbanDate = strconv.Itoa(nowDate + duration)
 	}
 
 	return unbanDate, nil
