@@ -141,6 +141,48 @@ func initialization() error {
 	return nil
 }
 
+// getAccessToken получает новый токен доступа
+func getAccessToken() error {
+	fmt.Print("> [New access token]: ")
+
+	// принимаем ввод нового токена
+	var userAnswer string
+	_, err := fmt.Scan(&userAnswer)
+	if err != nil {
+		return err
+	}
+
+	// получаем путь к файлу с шаблонами
+	pathToFile, err := readPath()
+	if err != nil {
+		return err
+	}
+
+	// получаем из json файла данные
+	rawData, err := readJSON(pathToFile + "data.json")
+	if err != nil {
+		return err
+	}
+
+	// конвертируем их в читабельный вид
+	var data Data
+	err = json.Unmarshal(rawData, &data)
+
+	// перезаписываем токен доступа
+	data.AccessToken = userAnswer
+
+	// формируем массив байт с шаблонами
+	valuesBytes, err := json.Marshal(data)
+	if err != nil {
+		log.Fatalln(err)
+	}
+
+	// записываем его в файл
+	err = ioutil.WriteFile(pathToFile+"data.json", valuesBytes, 0644)
+
+	return nil
+}
+
 // getData получает данные для параметров из файла json
 func getData() (Data, error) {
 	var data Data
@@ -194,11 +236,39 @@ func getUserID(userURL string) (string, string, error) {
 	// отправляем запрос на получение данных о пользователе
 	resp, err := sendRequestVKAPI("users.get", params, data.AccessToken)
 	if err != nil {
+
+		switch true {
 		// если сервер вернул ошибку "слишком много запросов в секунду", то повторяем запрос
-		if strings.Contains(err.Error(), "many requests per second") {
+		case strings.Contains(err.Error(), "many requests per second"):
 			return getUserID(userURL)
+		// если сервер вернул ошибку "токен устарел", то просим у пользователя новый токен
+		case strings.Contains(err.Error(), "access_token has expired"):
+			if err := getAccessToken(); err != nil {
+				return "", "", err
+			}
+			return getUserID(userURL)
+		// если сервер вернул ошибку "токен был получен для другого ip", то просим у пользователя новый токен
+		case strings.Contains(err.Error(), "access_token was given to another ip address"):
+			if err := getAccessToken(); err != nil {
+				return "", "", err
+			}
+			return getUserID(userURL)
+		// если сервер вернул ошибку "токен невалидный", то просим у пользователя новый токен
+		case strings.Contains(err.Error(), "invalid access_token"):
+			if err := getAccessToken(); err != nil {
+				return "", "", err
+			}
+			return getUserID(userURL)
+		// если сервер вернул ошибку "токен не введен", то просим у пользователя новый токен
+		case strings.Contains(err.Error(), "no access_token passed"):
+			if err := getAccessToken(); err != nil {
+				return "", "", err
 		}
+			return getUserID(userURL)
+		default:
 		return "", "", err
+	}
+
 	}
 
 	// описываемт структуру для словаря с данными о пользователе
