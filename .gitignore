@@ -1,4 +1,5 @@
 db/
+.DS_Store
 ThisIsBan
 path.txt
 data.json
