@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -126,6 +127,20 @@ func initialization() error {
 		// если отсутствует, то создаем новый
 		var data Data
 
+		// заполняем список групп
+		groupData, err := getGroupData()
+		if err != nil {
+			return err
+		}
+		data.Groups = append(data.Groups, groupData)
+
+		// заполняем список типов банов
+		banReason, err := getBanReasonsData()
+		if err != nil {
+			return err
+		}
+		data.BanReasons = append(data.BanReasons, banReason)
+
 		// формируем массив байт с данными
 		valuesBytes, err := json.Marshal(data)
 		if err != nil {
@@ -139,7 +154,75 @@ func initialization() error {
 		}
 		fmt.Println("COMPUTER [Initialization]: File \"data.json\" has been created.")
 	}
+
 	return nil
+}
+
+// getGroupData принимает данные о группе
+func getGroupData() (Groups, error) {
+	fmt.Println("COMPUTER [Initialization]: Data of groups not found. Need new data.")
+	var groupData Groups
+
+	fmt.Print("> [Group name]: ")
+	// принимаем ввод названия группы
+	var userAnswer string
+	_, err := fmt.Scan(&userAnswer)
+	if err != nil {
+		return groupData, err
+	}
+	groupData.Name = userAnswer
+
+	fmt.Print("> [Group ID]: ")
+	// принимаем ввод идентификатора группы
+	_, err = fmt.Scan(&userAnswer)
+	if err != nil {
+		return groupData, err
+	}
+	groupData.ID = userAnswer
+
+	return groupData, nil
+}
+
+func getBanReasonsData() (BanReasons, error) {
+	fmt.Println("COMPUTER [Initialization]: Data of bans not found. Need new data.")
+	var banReason BanReasons
+
+	fmt.Print("> [Reason]: ")
+	// принимаем комментарий для бана
+	var userAnswer string
+	scnr := bufio.NewScanner(os.Stdin)
+	scnr.Scan()
+	userAnswer = scnr.Text()
+	banReason.Reason = userAnswer
+
+	durationTitles := [5]string{"Day", "Week", "Month", "Year", "End of the year"}
+	// оглашаем весь список
+	for i, durationTitle := range durationTitles {
+		fmt.Printf("> [Duration titles]: %d == %v\n", i+1, durationTitle)
+	}
+	fmt.Print("> [Duration title]: ")
+
+	// запрашиваем номер срока
+	_, err := fmt.Scan(&userAnswer)
+	if err != nil {
+		return banReason, err
+	}
+
+	// конвертируем строку с номером срока в целочисленный тип
+	intUserAnswer, err := strconv.Atoi(userAnswer)
+	if err != nil {
+		return banReason, err
+	}
+
+	// получаем название срока по его номеру
+	banReason.DurationTitle = durationTitles[intUserAnswer-1]
+
+	durations := [5]int{86400, 604800, 2629743, 31556926, 0}
+
+	// получаем длительность срока по номеру его названия
+	banReason.Duration = durations[intUserAnswer-1]
+
+	return banReason, nil
 }
 
 // getAccessToken получает новый токен доступа
