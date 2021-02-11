@@ -4,7 +4,7 @@ import (
 	"bufio"
 	"encoding/json"
 	"fmt"
-	govkapi "github.com/VitJRBOG/GoVkApi"
+	govkapi "github.com/VitJRBOG/GoVkApi/v2"
 	"io/ioutil"
 	"log"
 	"os"
