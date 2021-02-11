@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"encoding/json"
 	"fmt"
+	govkapi "github.com/VitJRBOG/GoVkApi"
 	"io/ioutil"
 	"log"
 	"os"
@@ -318,7 +319,7 @@ func getUserID(userURL string) (string, string, error) {
 	}
 
 	// отправляем запрос на получение данных о пользователе
-	resp, err := sendRequestVKAPI("users.get", params, data.AccessToken)
+	resp, err := govkapi.Method("users.get", data.AccessToken, params)
 	if err != nil {
 
 		switch true {
@@ -519,7 +520,7 @@ func banUser(banInfo BanInfo) error {
 	}
 
 	// отправляем запрос на блокировку пользователя в соответствии с параметрами
-	_, err = sendRequestVKAPI("groups.ban", params, data.AccessToken)
+	_, err = govkapi.Method("groups.ban", data.AccessToken, params)
 	if err != nil {
 		// если сервер вернул ошибку "слишком много запросов в секунду", то повторяем запрос
 		if strings.Contains(err.Error(), "many requests per second") {
